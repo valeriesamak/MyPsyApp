@@ -19,6 +19,10 @@
   .boot-error h2{color:#23312B;font-size:18px;}
   .boot-error code{background:#F3DEE0;padding:2px 6px;border-radius:5px;font-size:13px;}
 
+.cal-scroll { overflow: auto; max-height: calc(100vh - 250px); max-height: calc(100dvh - 250px); -webkit-overflow-scrolling: touch; }
+@media (max-width: 720px) {
+  .cal-scroll { max-height: calc(100vh - 235px); max-height: calc(100dvh - 235px); }
+}
 /* ---- warm & readable design pass ---- */
 body { font-size: 16px; }
 input, select, textarea { font-size: 16px !important; padding: 11px 13px !important; border-radius: 11px !important; }
@@ -28,10 +32,18 @@ input[type="checkbox"] { padding: 0 !important; }
 .badge { font-size: 13px; padding: 5px 11px; }
 @media (max-width: 720px) {
   body { font-size: 17px; }
+  .app-main {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 22px) !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+  }
   .btn-primary, .btn-secondary { font-size: 16.5px; padding: 13px 20px; }
   .badge { font-size: 13.5px; padding: 6px 12px; }
   h1.font-display { font-size: 24px !important; }
-  .bottom-nav button { font-size: 11px !important; padding-top: 8px !important; padding-bottom: 8px !important; }
+  .bottom-nav button { font-size: 13.5px !important; font-weight: 600; padding-top: 9px !important; padding-bottom: 9px !important; gap: 4px !important; line-height: 1.1; }
+  .bottom-nav button span { white-space: nowrap; }
+  .bottom-nav button svg, .bottom-nav button > *:first-child { font-size: 21px !important; }
 }
 </style>
 <script>
@@ -741,7 +753,7 @@ function App() {
     { id: "calendar", label: "\u05D9\u05D5\u05DE\u05DF", icon: I.calendar },
     { id: "finance", label: "\u05DB\u05E1\u05E4\u05D9\u05DD", icon: I.finance },
     { id: "stats", label: "\u05E1\u05D8\u05D8\u05D9\u05E1\u05D8\u05D9\u05E7\u05D4", icon: I.stats },
-    { id: "settings", label: "\u05D4\u05D2\u05D3\u05E8\u05D5\u05EA \u05D5\u05D2\u05D9\u05D1\u05D5\u05D9", icon: I.settings }
+    { id: "settings", label: "\u05D4\u05D2\u05D3\u05E8\u05D5\u05EA", icon: I.settings }
   ];
   const statusChip = {
     disconnected: { icon: "\u2601\uFE0F", text: "\u05DC\u05D0 \u05DE\u05D7\u05D5\u05D1\u05E8 \u05DC\u05D2\u05D9\u05D1\u05D5\u05D9 \u05E2\u05E0\u05DF", color: "#9BB0A5" },
@@ -750,7 +762,7 @@ function App() {
     synced: { icon: "\u2705", text: lastSync ? `\u05DE\u05E1\u05D5\u05E0\u05DB\u05E8\u05DF \xB7 ${formatDateTime(lastSync)}` : "\u05DE\u05E1\u05D5\u05E0\u05DB\u05E8\u05DF", color: "#8FD0A0" },
     error: { icon: "\u26A0\uFE0F", text: "\u05E9\u05D2\u05D9\u05D0\u05EA \u05E1\u05E0\u05DB\u05E8\u05D5\u05DF", color: "#E8A8AE" }
   }[driveStatus];
-  return /* @__PURE__ */ React.createElement("div", { className: "clinic-app", dir: "rtl", lang: "he" }, /* @__PURE__ */ React.createElement("style", null, styleSheet), /* @__PURE__ */ React.createElement("aside", { className: "sidebar-desktop", style: { width: 220, background: "var(--color-primary)", padding: "22px 14px", display: "flex", flexDirection: "column", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "0 8px 22px", borderBottom: "1px solid rgba(255,255,255,0.12)", marginBottom: 18 } }, /* @__PURE__ */ React.createElement("div", { className: "font-display", style: { color: "#fff", fontSize: 21, fontWeight: 700 } }, "\u05DE\u05E8\u05E4\u05D0\u05D4 \u05E4\u05E8\u05D8\u05D9\u05EA"), /* @__PURE__ */ React.createElement("div", { style: { color: "#9BB0A5", fontSize: 12.5, marginTop: 2 } }, "\u05E0\u05D9\u05D4\u05D5\u05DC \u05DE\u05D8\u05D5\u05E4\u05DC\u05D9\u05DD \u05D5\u05EA\u05D9\u05D0\u05D5\u05DD")), /* @__PURE__ */ React.createElement("nav", { style: { display: "flex", flexDirection: "column", gap: 4 } }, NAV.map((n) => /* @__PURE__ */ React.createElement("button", { key: n.id, className: `nav-btn ${view === n.id ? "active" : ""}`, onClick: () => setView(n.id) }, /* @__PURE__ */ React.createElement(n.icon, null), n.label))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "auto", padding: "12px 8px 0" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setView("settings"), style: { background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 9, padding: "8px 10px", width: "100%", textAlign: "right", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: statusChip.color } }, /* @__PURE__ */ React.createElement("span", null, statusChip.icon), /* @__PURE__ */ React.createElement("span", null, statusChip.text)))), /* @__PURE__ */ React.createElement("div", { className: "bottom-nav", style: { position: "fixed", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0, background: "var(--color-primary)", zIndex: 40, padding: "6px 4px", paddingBottom: "calc(6px + env(safe-area-inset-bottom))" } }, NAV.map((n) => /* @__PURE__ */ React.createElement("button", { key: n.id, onClick: () => setView(n.id), style: { flex: 1, background: "transparent", border: "none", color: view === n.id ? "#fff" : "#9BB0A5", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: "6px 0", fontSize: 10 } }, /* @__PURE__ */ React.createElement(n.icon, null), /* @__PURE__ */ React.createElement("span", null, n.label)))), /* @__PURE__ */ React.createElement("main", { className: "clinic-scroll", style: { flex: 1, overflowY: "auto", padding: "28px 32px 90px", minWidth: 0 } }, view === "dashboard" ? /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "clinic-app", dir: "rtl", lang: "he" }, /* @__PURE__ */ React.createElement("style", null, styleSheet), /* @__PURE__ */ React.createElement("aside", { className: "sidebar-desktop", style: { width: 220, background: "var(--color-primary)", padding: "22px 14px", display: "flex", flexDirection: "column", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "0 8px 22px", borderBottom: "1px solid rgba(255,255,255,0.12)", marginBottom: 18 } }, /* @__PURE__ */ React.createElement("div", { className: "font-display", style: { color: "#fff", fontSize: 21, fontWeight: 700 } }, "\u05DE\u05E8\u05E4\u05D0\u05D4 \u05E4\u05E8\u05D8\u05D9\u05EA"), /* @__PURE__ */ React.createElement("div", { style: { color: "#9BB0A5", fontSize: 12.5, marginTop: 2 } }, "\u05E0\u05D9\u05D4\u05D5\u05DC \u05DE\u05D8\u05D5\u05E4\u05DC\u05D9\u05DD \u05D5\u05EA\u05D9\u05D0\u05D5\u05DD")), /* @__PURE__ */ React.createElement("nav", { style: { display: "flex", flexDirection: "column", gap: 4 } }, NAV.map((n) => /* @__PURE__ */ React.createElement("button", { key: n.id, className: `nav-btn ${view === n.id ? "active" : ""}`, onClick: () => setView(n.id) }, /* @__PURE__ */ React.createElement(n.icon, null), n.label))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "auto", padding: "12px 8px 0" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setView("settings"), style: { background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 9, padding: "8px 10px", width: "100%", textAlign: "right", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: statusChip.color } }, /* @__PURE__ */ React.createElement("span", null, statusChip.icon), /* @__PURE__ */ React.createElement("span", null, statusChip.text)))), /* @__PURE__ */ React.createElement("div", { className: "bottom-nav", style: { position: "fixed", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0, background: "var(--color-primary)", zIndex: 40, padding: "6px 4px", paddingBottom: "calc(6px + env(safe-area-inset-bottom))" } }, NAV.map((n) => /* @__PURE__ */ React.createElement("button", { key: n.id, onClick: () => setView(n.id), style: { flex: 1, background: "transparent", border: "none", color: view === n.id ? "#fff" : "#9BB0A5", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: "6px 0", fontSize: 10 } }, /* @__PURE__ */ React.createElement(n.icon, null), /* @__PURE__ */ React.createElement("span", null, n.label)))), /* @__PURE__ */ React.createElement("main", { className: "clinic-scroll app-main", style: { flex: 1, overflowY: "auto", padding: "28px 32px 90px", minWidth: 0 } }, view === "dashboard" ? /* @__PURE__ */ React.createElement(
     Dashboard,
     {
       patients,
@@ -994,14 +1006,16 @@ function CalendarView({ appointments, patientMap, weekOffset, setWeekOffset, onA
   const weekDates = Array.from({ length: 7 }, (_, i) => isoDate(addDays(base, i)));
   const hours = Array.from({ length: TIME_END - TIME_START }, (_, i) => TIME_START + i);
   const today = todayISO();
+  const isMobile = typeof window !== "undefined" && window.innerWidth <= 720;
+  const pxPerHour = isMobile ? Math.max(34, Math.floor(((window.innerHeight || 700) - 305) / hours.length)) : PX_PER_HOUR;
   function apptStyle(a) {
     const [h, m] = a.startTime.split(":").map(Number);
-    const top = (h + m / 60 - TIME_START) * PX_PER_HOUR;
-    const height = Math.max(24, a.duration / 60 * PX_PER_HOUR - 3);
+    const top = (h + m / 60 - TIME_START) * pxPerHour;
+    const height = Math.max(22, a.duration / 60 * pxPerHour - 3);
     return { top, height };
   }
   const colors = { scheduled: "var(--color-primary)", completed: "var(--color-sage)", cancelled: "#B9B2A0", noshow: "var(--color-rose)" };
-  return /* @__PURE__ */ React.createElement("div", { className: "fade-up" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 12 } }, /* @__PURE__ */ React.createElement("h1", { className: "font-display", style: { fontSize: 26, margin: 0 } }, "\u05D9\u05D5\u05DE\u05DF"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } }, /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", onClick: () => setWeekOffset((w) => w - 1) }, "\u2039 \u05E9\u05D1\u05D5\u05E2 \u05E7\u05D5\u05D3\u05DD"), /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", onClick: () => setWeekOffset(0) }, "\u05D4\u05E9\u05D1\u05D5\u05E2"), /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", onClick: () => setWeekOffset((w) => w + 1) }, "\u05E9\u05D1\u05D5\u05E2 \u05D4\u05D1\u05D0 \u203A"))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { overflowX: "auto", padding: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "56px repeat(7, minmax(120px, 1fr))", minWidth: 900 } }, /* @__PURE__ */ React.createElement("div", { style: { borderBottom: "1px solid var(--color-border)" } }), weekDates.map((d, i) => /* @__PURE__ */ React.createElement("div", { key: d, style: { padding: "12px 8px", textAlign: "center", borderBottom: "1px solid var(--color-border)", borderInlineStart: "1px solid var(--color-border)", background: d === today ? "var(--color-primary-soft)" : "transparent" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: "var(--color-ink-soft)", fontWeight: 600 } }, DAY_NAMES[i]), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, (/* @__PURE__ */ new Date(d + "T00:00:00")).getDate()))), /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, hours.map((h) => /* @__PURE__ */ React.createElement("div", { key: h, style: { height: PX_PER_HOUR, fontSize: 11.5, color: "var(--color-ink-soft)", textAlign: "center", borderTop: "1px solid var(--color-border)", paddingTop: 4 } }, h, ":00"))), weekDates.map((d) => {
+  return /* @__PURE__ */ React.createElement("div", { className: "fade-up" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 12 } }, /* @__PURE__ */ React.createElement("h1", { className: "font-display", style: { fontSize: 26, margin: 0 } }, "\u05D9\u05D5\u05DE\u05DF"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } }, /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", onClick: () => setWeekOffset((w) => w - 1) }, "\u2039 \u05E9\u05D1\u05D5\u05E2 \u05E7\u05D5\u05D3\u05DD"), /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", onClick: () => setWeekOffset(0) }, "\u05D4\u05E9\u05D1\u05D5\u05E2"), /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", onClick: () => setWeekOffset((w) => w + 1) }, "\u05E9\u05D1\u05D5\u05E2 \u05D4\u05D1\u05D0 \u203A"))), /* @__PURE__ */ React.createElement("div", { className: "card cal-scroll", style: { padding: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: isMobile ? "46px repeat(7, minmax(96px, 1fr))" : "56px repeat(7, minmax(120px, 1fr))", minWidth: isMobile ? 0 : 900 } }, /* @__PURE__ */ React.createElement("div", { style: { borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, insetInlineStart: 0, zIndex: 6, background: "var(--color-surface)" } }), weekDates.map((d, i) => /* @__PURE__ */ React.createElement("div", { key: d, style: { padding: isMobile ? "8px 4px" : "12px 8px", textAlign: "center", borderBottom: "1px solid var(--color-border)", borderInlineStart: "1px solid var(--color-border)", background: d === today ? "#DFE7E1" : "var(--color-surface)", position: "sticky", top: 0, zIndex: 4 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: "var(--color-ink-soft)", fontWeight: 600 } }, DAY_NAMES[i]), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, (/* @__PURE__ */ new Date(d + "T00:00:00")).getDate()))), /* @__PURE__ */ React.createElement("div", { style: { position: "sticky", insetInlineStart: 0, zIndex: 3, background: "var(--color-surface)" } }, hours.map((h) => /* @__PURE__ */ React.createElement("div", { key: h, style: { height: pxPerHour, fontSize: isMobile ? 11 : 11.5, fontWeight: 600, color: "var(--color-ink-soft)", textAlign: "center", borderTop: "1px solid var(--color-border)", paddingTop: 3 } }, h, ":00"))), weekDates.map((d) => {
     const dayAppts = appointments.filter((a) => a.date === d);
     return /* @__PURE__ */ React.createElement(
       "div",
@@ -1012,14 +1026,14 @@ function CalendarView({ appointments, patientMap, weekOffset, setWeekOffset, onA
           if (e.target !== e.currentTarget) return;
           const rect = e.currentTarget.getBoundingClientRect();
           const y = e.clientY - rect.top;
-          const hourFloat = TIME_START + y / PX_PER_HOUR;
+          const hourFloat = TIME_START + y / pxPerHour;
           const hh = Math.floor(hourFloat);
           const mm = Math.round((hourFloat - hh) * 60 / 15) * 15;
           const time = `${String(hh).padStart(2, "0")}:${String(mm % 60).padStart(2, "0")}`;
           onAdd(d, time);
         }
       },
-      hours.map((h) => /* @__PURE__ */ React.createElement("div", { key: h, style: { height: PX_PER_HOUR, borderTop: "1px solid var(--color-border)" } })),
+      hours.map((h) => /* @__PURE__ */ React.createElement("div", { key: h, style: { height: pxPerHour, borderTop: "1px solid var(--color-border)" } })),
       dayAppts.map((a) => {
         const { top, height } = apptStyle(a);
         return /* @__PURE__ */ React.createElement(
