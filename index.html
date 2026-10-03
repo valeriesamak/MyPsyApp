@@ -113,7 +113,7 @@ const MONTH_NAMES = [
   "\u05D3\u05E6\u05DE\u05D1\u05E8",
 ];
 const METHODS = { cash: "\u05DE\u05D6\u05D5\u05DE\u05DF", card: "\u05D0\u05E9\u05E8\u05D0\u05D9", transfer: "\u05D4\u05E2\u05D1\u05E8\u05D4", bit: "\u05D1\u05D9\u05D8" };
-const APP_VERSION = "3.6";
+const APP_VERSION = "3.8";
 const TIME_START = 8;
 const TIME_END = 21;
 const PX_PER_HOUR = 64;
@@ -161,6 +161,9 @@ function migrateDataV2(data) {
   const credit = {};
   payments.forEach((p) => {
     credit[p.patientId] = (credit[p.patientId] || 0) + Number(p.amount || 0);
+  });
+  appointments.forEach((a) => {
+    if (a.paid === true && a.status === "completed") credit[a.patientId] = (credit[a.patientId] || 0) - apptPrice(a, byId[a.patientId]);
   });
   const order = appointments.map((a, i) => ({ a, i })).sort((x, y) => (x.a.date + x.a.startTime).localeCompare(y.a.date + y.a.startTime));
   const out = appointments.slice();
@@ -396,7 +399,7 @@ const isAudioRef = (v) => typeof v === "string" && v.startsWith(AUDIO_MARK);
 const audioKeyOf = (v) => v.slice(AUDIO_MARK.length);
 
 const SYNC_COLS = ["patients", "appointments", "payments"];
-const TOMBSTONE_DAYS = 180;
+const TOMBSTONE_DAYS = 730;
 function stampChanges(prev, next) {
   const now = /* @__PURE__ */ new Date().toISOString();
   const out = { ...next, savedAt: now };
@@ -421,6 +424,35 @@ function stampChanges(prev, next) {
   });
   out.deleted = deleted;
   return out;
+}
+// Callers build `next` from the data they last rendered (`base`). If a sync
+// landed in between, `current` holds records `base` never saw: re-apply only
+// what the caller changed on top of `current` instead of overwriting it.
+function rebaseChanges(base, next, current) {
+  if (!base || base === current) return next;
+  const out = { ...current };
+  Object.keys(next).forEach((k) => {
+    if (!SYNC_COLS.includes(k) && next[k] !== base[k]) out[k] = next[k];
+  });
+  SYNC_COLS.forEach((col) => {
+    const b = base[col] || [];
+    const n = next[col] || [];
+    if (n === b) return;
+    const before = new Map(b.map((r) => [r.id, r]));
+    const kept = new Set(n.map((r) => r.id));
+    const changed = new Map(n.filter((r) => before.get(r.id) !== r).map((r) => [r.id, r]));
+    const removed = new Set(b.filter((r) => !kept.has(r.id)).map((r) => r.id));
+    const res = (current[col] || []).filter((r) => !removed.has(r.id)).map((r) => changed.get(r.id) || r);
+    const have = new Set(res.map((r) => r.id));
+    changed.forEach((r, id) => {
+      if (!have.has(id)) res.push(r);
+    });
+    out[col] = res;
+  });
+  return out;
+}
+function isBackupShape(d) {
+  return !!d && typeof d === "object" && !Array.isArray(d) && SYNC_COLS.every((c) => d[c] === void 0 || Array.isArray(d[c])) && Array.isArray(d.patients) && Array.isArray(d.appointments);
 }
 function mergeData(local, remote) {
   if (!remote) return local;
@@ -496,6 +528,8 @@ function useClinicData() {
   const pushTimerRef = useRef(null);
   const dataRef = useRef(data);
   dataRef.current = data;
+  const renderedRef = useRef(data);
+  renderedRef.current = data;
   const [saveError, setSaveError] = useState(null);
   const storedAudioRef = useRef(/* @__PURE__ */ new Map());
   const idbBrokenRef = useRef(false);
@@ -742,8 +776,9 @@ function useClinicData() {
       });
     }, 1500);
   }
-  const persist = useCallback((next) => {
-    const stamped = stampChanges(dataRef.current, next);
+  const persist = useCallback((next, opts) => {
+    const merged = opts && opts.replace ? next : rebaseChanges(renderedRef.current, next, dataRef.current);
+    const stamped = stampChanges(dataRef.current, merged);
     dataRef.current = stamped;
     dirtyRef.current = true;
     setDataState(stamped);
@@ -785,7 +820,7 @@ function useClinicData() {
     });
   }
   function resolveConflict(useRemote) {
-    if (useRemote && conflict) persist(conflict);
+    if (useRemote && conflict) persist(conflict, { replace: true });
     setConflict(null);
   }
   function disconnectDrive() {
@@ -941,7 +976,18 @@ function useClinicData() {
     reader.onload = () => {
       try {
         const parsed = JSON.parse(reader.result);
-        persist(parsed);
+        if (!isBackupShape(parsed)) {
+          onDone && onDone(false, "\u05D4\u05E7\u05D5\u05D1\u05E5 \u05D0\u05D9\u05E0\u05D5 \u05D2\u05D9\u05D1\u05D5\u05D9 \u05EA\u05E7\u05D9\u05DF \u05E9\u05DC \u05D4\u05DE\u05E8\u05E4\u05D0\u05D4.");
+          return;
+        }
+        const ask =
+          `\u05DC\u05E9\u05D7\u05D6\u05E8 \u05D0\u05EA \u05D4\u05D2\u05D9\u05D1\u05D5\u05D9? (${parsed.patients.length} \u05DE\u05D8\u05D5\u05E4\u05DC\u05D9\u05DD, ${parsed.appointments.length} \u05E4\u05D2\u05D9\u05E9\u05D5\u05EA)\n\n` +
+          "\u05DB\u05DC \u05D4\u05E0\u05EA\u05D5\u05E0\u05D9\u05DD \u05D4\u05E0\u05D5\u05DB\u05D7\u05D9\u05D9\u05DD \u05D9\u05D5\u05D7\u05DC\u05E4\u05D5 \u05D1\u05EA\u05D5\u05DB\u05DF \u05D4\u05E7\u05D5\u05D1\u05E5, \u05D2\u05DD \u05D1\u05DE\u05DB\u05E9\u05D9\u05E8\u05D9\u05DD \u05D4\u05DE\u05E1\u05D5\u05E0\u05DB\u05E8\u05E0\u05D9\u05DD.";
+        if (!window.confirm(ask)) {
+          onDone && onDone(false, "cancelled");
+          return;
+        }
+        persist({ payments: [], ...parsed }, { replace: true });
         onDone && onDone(true);
       } catch (e) {
         onDone && onDone(false);
@@ -1160,7 +1206,16 @@ function App() {
     const { _weekly, ...patient } = form;
     const exists = patients.some((p) => p.id === patient.id);
     if (exists) {
-      persist({ ...data, patients: patients.map((p) => (p.id === patient.id ? { ...p, ...patient } : p)) });
+      const old = patients.find((p) => p.id === patient.id);
+      const oldRate = Number(old.sessionRate || 0);
+      let nextAppts = appointments;
+      if (Number(patient.sessionRate || 0) !== oldRate) {
+        // freeze the old rate on past and completed sessions that had no price of their own
+        const today = todayISO();
+        const noPrice = (a) => a.price === "" || a.price === void 0 || a.price === null;
+        nextAppts = appointments.map((a) => (a.patientId === patient.id && noPrice(a) && (a.date < today || a.status === "completed") ? { ...a, price: oldRate } : a));
+      }
+      persist({ ...data, patients: patients.map((p) => (p.id === patient.id ? { ...p, ...patient } : p)), appointments: nextAppts });
       setPatientModal(null);
       return;
     }
@@ -1356,7 +1411,8 @@ function App() {
   }
   function savePayment(form, paidApptIds) {
     const exists = payments.some((p) => p.id === form.id);
-    const next = exists ? payments.map((p) => (p.id === form.id ? form : p)) : [...payments, { ...form, id: uid() }];
+    const covered = paidApptIds && paidApptIds.length ? { apptIds: paidApptIds } : {};
+    const next = exists ? payments.map((p) => (p.id === form.id ? { ...p, ...form } : p)) : [...payments, { ...form, ...covered, id: uid() }];
     const idSet = new Set(paidApptIds || []);
     const nextAppts = idSet.size ? appointments.map((a) => (idSet.has(a.id) ? { ...a, paid: true } : a)) : appointments;
     persist({ ...data, payments: next, appointments: nextAppts });
@@ -1471,7 +1527,13 @@ function App() {
     persist({ ...data, appointments: appointments.map((a) => (idSet.has(a.id) ? { ...a, paid: true, invoiced: true } : a)) });
   }
   function deletePayment(id) {
-    persist({ ...data, payments: payments.filter((p) => p.id !== id) });
+    const pay = payments.find((p) => p.id === id);
+    const covered = new Set(((pay && pay.apptIds) || []).filter((aid) => appointments.some((a) => a.id === aid && a.paid)));
+    const unmark =
+      covered.size > 0 &&
+      window.confirm(`\u05D4\u05EA\u05E9\u05DC\u05D5\u05DD \u05DB\u05D9\u05E1\u05D4 ${covered.size} \u05E4\u05D2\u05D9\u05E9\u05D5\u05EA. \u05DC\u05E1\u05DE\u05DF \u05D0\u05D5\u05EA\u05DF \u05E9\u05D5\u05D1 \u05DB\u05DC\u05D0 \u05E9\u05D5\u05DC\u05DE\u05D5?`);
+    const nextAppts = unmark ? appointments.map((a) => (covered.has(a.id) ? { ...a, paid: false } : a)) : appointments;
+    persist({ ...data, payments: payments.filter((p) => p.id !== id), appointments: nextAppts });
     setConfirmDelete(null);
   }
   const NAV = [
@@ -3172,7 +3234,7 @@ function PatientsView({
                 { style: { fontSize: 13, fontWeight: 700, color: "var(--color-gold)" } },
                 selApptIds.length,
                 " \u05E4\u05D2\u05D9\u05E9\u05D5\u05EA \u05E0\u05D1\u05D7\u05E8\u05D5 \xB7 ",
-                formatILS(history.filter((a) => selApptIds.includes(a.id)).reduce((s, a) => s + Number(a.price ?? selected.sessionRate ?? 0), 0)),
+                formatILS(history.filter((a) => selApptIds.includes(a.id)).reduce((s, a) => s + apptPrice(a, selected), 0)),
               ),
               /* @__PURE__ */ React.createElement(
                 "button",
@@ -3613,12 +3675,12 @@ function FinanceView({ patients, appointments, payments, patientMap, patientBala
       const d = /* @__PURE__ */ new Date();
       d.setDate(1);
       d.setMonth(d.getMonth() - i);
-      const key = d.toISOString().slice(0, 7);
+      const key = isoDate(d).slice(0, 7);
       const total = incomeForMonth(appointments, patients, key);
       arr.push({ name: MONTH_NAMES[d.getMonth()].slice(0, 3), amount: total });
     }
     return arr;
-  }, [payments]);
+  }, [appointments, patients]);
   const sortedPayments = [...payments].sort((a, b) => b.date.localeCompare(a.date));
   const debtors = patients
     .map((p) => ({ p, balance: patientBalance(p.id) }))
@@ -3977,8 +4039,9 @@ function SettingsView({
           onChange: (e) => {
             const f = e.target.files[0];
             if (f)
-              importBackupFile(f, () => {
-                setMsg({ type: "ok", text: "\u05D9\u05D5\u05D1\u05D0 \u05D1\u05D4\u05E6\u05DC\u05D7\u05D4." });
+              importBackupFile(f, (ok, err) => {
+                if (ok) setMsg({ type: "ok", text: "\u05D9\u05D5\u05D1\u05D0 \u05D1\u05D4\u05E6\u05DC\u05D7\u05D4." });
+                else if (err !== "cancelled") setMsg({ type: "err", text: err || "\u05D4\u05D9\u05D9\u05D1\u05D5\u05D0 \u05E0\u05DB\u05E9\u05DC." });
               });
             e.target.value = "";
           },
@@ -4662,7 +4725,7 @@ function ApptModal({ initial, patients, onClose, onSave, onDelete }) {
 function InvoiceModal({ patient, appts, onClose, onMarkPaid }) {
   const [copied, setCopied] = useState(false);
   const sorted = [...appts].sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
-  const lines = sorted.map((a) => ({ a, price: Number(a.price ?? patient.sessionRate ?? 0) }));
+  const lines = sorted.map((a) => ({ a, price: apptPrice(a, patient) }));
   const total = lines.reduce((s, l) => s + l.price, 0);
   const invoiceText = [
     `\u05DC\u05E7\u05D5\u05D7/\u05D4: ${patient.name}`,
