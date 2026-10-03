@@ -12,7 +12,7 @@ window.alert=()=>{}; window.confirm=()=>true;
 const d=new Date(); const pad=n=>String(n).padStart(2,'0');
 const loc=x=>`${x.getFullYear()}-${pad(x.getMonth()+1)}-${pad(x.getDate())}`;
 const day=n=>loc(new Date(d.getTime()-n*864e5)); const fut=n=>loc(new Date(d.getTime()+n*864e5));
-window.localStorage.setItem('clinic_data_v1',JSON.stringify({schemaVersion:2,
+window.localStorage.setItem('clinic_data_v1',JSON.stringify({schemaVersion:2, settings:{showPaymentReminders:true},
  patients:[{id:'p1',name:'דנה כהן',sessionRate:300,payerType:'private'}],
  appointments:[
   {id:'s1',patientId:'p1',date:day(2),startTime:'10:00',duration:50,status:'scheduled',paid:false},

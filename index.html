@@ -80,8 +80,8 @@ input[type="checkbox"] { padding: 0 !important; }
     }, 6000);
   });
 </script>
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js" onerror="showBootError('לא ניתן היה לטעון את React מ-unpkg.com. בדקו חיבור אינטרנט או חוסם פרסומות.')"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" onerror="showBootError('לא ניתן היה לטעון את React-DOM מ-unpkg.com. בדקו חיבור אינטרנט או חוסם פרסומות.')"></script>
+<script crossorigin="anonymous" src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" onerror="showBootError('לא ניתן היה לטעון את React מ-unpkg.com. בדקו חיבור אינטרנט או חוסם פרסומות.')"></script>
+<script crossorigin="anonymous" src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" onerror="showBootError('לא ניתן היה לטעון את React-DOM מ-unpkg.com. בדקו חיבור אינטרנט או חוסם פרסומות.')"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -1160,7 +1160,7 @@ function App() {
     const { _weekly, ...patient } = form;
     const exists = patients.some((p) => p.id === patient.id);
     if (exists) {
-      persist({ ...data, patients: patients.map((p) => (p.id === patient.id ? patient : p)) });
+      persist({ ...data, patients: patients.map((p) => (p.id === patient.id ? { ...p, ...patient } : p)) });
       setPatientModal(null);
       return;
     }
@@ -1264,7 +1264,7 @@ function App() {
       return;
     }
     if (!confirmConflicts(findConflicts([form]))) return;
-    const next = exists ? appointments.map((a) => (a.id === form.id ? form : a)) : [...appointments, { ...form, id: uid() }];
+    const next = exists ? appointments.map((a) => (a.id === form.id ? { ...a, ...form } : a)) : [...appointments, { ...form, id: uid() }];
     persist({ ...data, appointments: next });
     setApptModal(null);
   }
@@ -1316,21 +1316,22 @@ function App() {
   function updateSeries(patientId, dow, time, newDow, newTime) {
     const list = futureSeriesAppts(patientId, dow, time);
     if (!list.length) return;
-    const tmpl = list[0];
     const ids = new Set(list.map((a) => a.id));
     const t = /* @__PURE__ */ new Date(todayISO() + "T00:00:00");
     const delta = (newDow - t.getDay() + 7) % 7;
     const first = addDays(t, delta);
-    const created = list.map((a, i) => ({ ...tmpl, id: uid(), date: isoDate(addDays(first, i * 7)), startTime: newTime }));
-    if (!confirmConflicts(findConflicts(created, ids))) return;
-    persist({ ...data, appointments: [...appointments.filter((a) => !ids.has(a.id)), ...created] });
+    // move each session in place so it keeps its own id, payment and notes
+    const moved = list.map((a, i) => ({ ...a, date: isoDate(addDays(first, i * 7)), startTime: newTime }));
+    if (!confirmConflicts(findConflicts(moved, ids))) return;
+    const byId = new Map(moved.map((a) => [a.id, a]));
+    persist({ ...data, appointments: appointments.map((a) => byId.get(a.id) || a) });
   }
   function renewSeries(patientId, dow, time, weeks = 12) {
     const list = futureSeriesAppts(patientId, dow, time);
     if (!list.length) return;
     const last = list[list.length - 1];
     const start = addDays(/* @__PURE__ */ new Date(last.date + "T00:00:00"), 7);
-    const created = Array.from({ length: weeks }, (_, i) => ({ ...last, id: uid(), date: isoDate(addDays(start, i * 7)), paid: false, notes: "", voiceNote: null, status: "scheduled" }));
+    const created = Array.from({ length: weeks }, (_, i) => ({ ...last, id: uid(), date: isoDate(addDays(start, i * 7)), paid: false, invoiced: false, notes: "", voiceNote: null, status: "scheduled" }));
     if (!confirmConflicts(findConflicts(created))) return;
     persist({ ...data, appointments: [...appointments, ...created] });
   }
@@ -2043,7 +2044,7 @@ function Dashboard({ settings, onSetSetting, patients, appointments, payments, p
     .filter((a) => isActive(patientMap[a.patientId] || {}))
     .filter((a) => !isDismissed(dismissals, "note:" + a.id, "1", today))
     .sort((a, b) => (b.date + b.startTime).localeCompare(a.date + a.startTime));
-  const showPayments = !(settings || {}).hidePaymentReminders;
+  const showPayments = !!(settings || {}).showPaymentReminders;
   const shownPaymentReminders = showPayments ? paymentReminders : [];
   const reminderCount = shownPaymentReminders.length + renewals.length + missingNotes.length;
   const dismissedCount = activeDismissals(dismissals, today).length;
@@ -2170,7 +2171,7 @@ function Dashboard({ settings, onSetSetting, patients, appointments, payments, p
           onMoveAppt,
           onSkipKind: (k) => {
             if (k === "payment" && window.confirm("\u05DC\u05D4\u05E1\u05EA\u05D9\u05E8 \u05EA\u05D6\u05DB\u05D5\u05E8\u05D5\u05EA \u05EA\u05E9\u05DC\u05D5\u05DD \u05D2\u05DD \u05D1\u05D4\u05DE\u05E9\u05DA? \u05EA\u05DE\u05D9\u05D3 \u05E0\u05D9\u05EA\u05DF \u05DC\u05D4\u05D7\u05D6\u05D9\u05E8 \u05D1\u05D4\u05D2\u05D3\u05E8\u05D5\u05EA."))
-              onSetSetting("hidePaymentReminders", true);
+              onSetSetting("showPaymentReminders", false);
           },
         }),
       todoCount === 0 && reminderCount === 0
@@ -3810,7 +3811,7 @@ function SettingsView({
   exportBackupFile,
   importBackupFile,
 }) {
-  const hidePay = !!(settings || {}).hidePaymentReminders;
+  const hidePay = !(settings || {}).showPaymentReminders;
   const [inputClientId, setInputClientId] = useState(clientId || "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -3860,17 +3861,17 @@ function SettingsView({
       /* @__PURE__ */ React.createElement(
         "p",
         { style: { margin: "0 0 12px", fontSize: 13, color: "var(--color-ink-soft)", lineHeight: 1.65 } },
-        "\u05D0\u05E4\u05E9\u05E8 \u05DC\u05DB\u05D1\u05D5\u05EA \u05D0\u05EA \u05EA\u05D6\u05DB\u05D5\u05E8\u05D5\u05EA \u05D4\u05EA\u05E9\u05DC\u05D5\u05DD \u05D1\u05DE\u05E1\u05DA \u05D4\u05D1\u05D9\u05EA. \u05D4\u05E1\u05DB\u05D5\u05DE\u05D9\u05DD \u05D9\u05DE\u05E9\u05D9\u05DB\u05D5 \u05DC\u05D4\u05D5\u05E4\u05D9\u05E2 \u05D1\u05DB\u05E8\u05D8\u05D9\u05E1 \u05D4\u05DE\u05D8\u05D5\u05E4\u05DC \u05D5\u05D1\u05DE\u05E1\u05DA \u05DB\u05E1\u05E4\u05D9\u05DD \u2014 \u05E8\u05E7 \u05DC\u05D0 \u05D9\u05D1\u05E7\u05E9\u05D5 \u05EA\u05E9\u05D5\u05DE\u05EA \u05DC\u05D1.",
+        "\u05EA\u05D6\u05DB\u05D5\u05E8\u05D5\u05EA \u05D4\u05EA\u05E9\u05DC\u05D5\u05DD \u05DB\u05D1\u05D5\u05D9\u05D5\u05EA \u05DB\u05D1\u05E8\u05D9\u05E8\u05EA \u05DE\u05D7\u05D3\u05DC. \u05D0\u05E4\u05E9\u05E8 \u05DC\u05D4\u05E4\u05E2\u05D9\u05DC \u05D0\u05D5\u05EA\u05DF \u05DB\u05D3\u05D9 \u05DC\u05E7\u05D1\u05DC \u05D1\u05DE\u05E1\u05DA \u05D4\u05D1\u05D9\u05EA \u05EA\u05D6\u05DB\u05D5\u05E8\u05EA \u05E2\u05DC \u05DE\u05D8\u05D5\u05E4\u05DC\u05D9\u05DD \u05E9\u05D8\u05E8\u05DD \u05E9\u05D9\u05DC\u05DE\u05D5. \u05D1\u05DB\u05DC \u05DE\u05E7\u05E8\u05D4, \u05D4\u05E1\u05DB\u05D5\u05DE\u05D9\u05DD \u05DE\u05D5\u05E4\u05D9\u05E2\u05D9\u05DD \u05D1\u05DB\u05E8\u05D8\u05D9\u05E1 \u05D4\u05DE\u05D8\u05D5\u05E4\u05DC \u05D5\u05D1\u05DE\u05E1\u05DA \u05DB\u05E1\u05E4\u05D9\u05DD.",
       ),
       /* @__PURE__ */ React.createElement(
         "button",
         {
           className: hidePay ? "btn-secondary" : "btn-primary",
           style: { width: "100%", justifyContent: "center", padding: 13 },
-          onClick: () => onSetSetting("hidePaymentReminders", !hidePay),
+          onClick: () => onSetSetting("showPaymentReminders", hidePay),
         },
         hidePay
-          ? "\u05DE\u05D5\u05E1\u05EA\u05E8\u05D5\u05EA \u2014 \u05DC\u05D4\u05E4\u05E2\u05DC\u05D4 \u05DE\u05D7\u05D3\u05E9"
+          ? "\u05DB\u05D1\u05D5\u05D9\u05D5\u05EA \u2014 \u05DC\u05D4\u05E4\u05E2\u05DC\u05D4"
           : "\u05E4\u05E2\u05D9\u05DC\u05D5\u05EA \u2014 \u05DC\u05DB\u05D9\u05D1\u05D5\u05D9",
       ),
     ),
@@ -4807,7 +4808,15 @@ function PaymentModal({ initial, patients, appointments = [], onClose, onSave })
       { label: "\u05DE\u05D8\u05D5\u05E4\u05DC/\u05EA *" },
       /* @__PURE__ */ React.createElement(
         "select",
-        { value: form.patientId, onChange: set("patientId") },
+        {
+          value: form.patientId,
+          onChange: (e) => {
+            const patientId = e.target.value;
+            // ticked sessions belong to the previous patient: drop them and the amount they summed to
+            setForm((f) => ({ ...f, patientId, amount: selIds.length ? "" : f.amount }));
+            setSelIds([]);
+          },
+        },
         /* @__PURE__ */ React.createElement("option", { value: "", disabled: true }, "\u05D1\u05D7\u05D9\u05E8\u05EA \u05DE\u05D8\u05D5\u05E4\u05DC/\u05EA"),
         patients.filter((p) => isActive(p) || p.id === form.patientId).map((p) => /* @__PURE__ */ React.createElement("option", { key: p.id, value: p.id }, p.name)),
       ),
@@ -4885,7 +4894,7 @@ function PaymentModal({ initial, patients, appointments = [], onClose, onSave })
       { style: { display: "flex", gap: 10, marginTop: 6 } },
       /* @__PURE__ */ React.createElement(
         "button",
-        { className: "btn-primary", disabled: !form.patientId || !form.amount, onClick: () => onSave({ ...form, amount: Number(form.amount) || 0 }, selIds) },
+        { className: "btn-primary", disabled: !form.patientId || !form.amount, onClick: () => onSave({ ...form, amount: Number(form.amount) || 0 }, selIds.filter((id) => unpaid.some((a) => a.id === id))) },
         "\u05E9\u05DE\u05D9\u05E8\u05D4",
       ),
       /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", onClick: onClose }, "\u05D1\u05D9\u05D8\u05D5\u05DC"),

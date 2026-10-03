@@ -14,7 +14,7 @@ window.navigator.mediaDevices={ getUserMedia: async()=>({ getTracks:()=>[{stop:(
 class FakeMR{ constructor(){this.state='inactive';} start(){this.state='recording'; setTimeout(()=>this.ondataavailable({data:new window.Blob(['x'])}),0);} stop(){this.state='inactive'; this.onstop();} }
 window.MediaRecorder=FakeMR; global.MediaRecorder=FakeMR;
 const d=new Date(); const iso=x=>x.toISOString().slice(0,10); const day=n=>iso(new Date(d.getTime()-n*864e5));
-window.localStorage.setItem('clinic_data_v1',JSON.stringify({schemaVersion:2,
+window.localStorage.setItem('clinic_data_v1',JSON.stringify({schemaVersion:2, settings:{showPaymentReminders:true},
  patients:[
   {id:'p1',name:'דנה כהן',phone:'0501111111',sessionRate:300,payerType:'private'},
   {id:'p2',name:'יוסי לוי',phone:'0502222222',sessionRate:250,payerType:'private'}],
@@ -63,7 +63,7 @@ check('note saved', n.notes==='סיכום בדיקה' && String(n.voiceNote).sta
 check('payment step', /תשלום שטרם התקבל/.test(txt()));
 answers=[true];
 await click(findAll('button',/לדלג על כל התשלומים/)[0],'skip');
-check('payment reminders disabled', store().settings?.hidePaymentReminders===true);
+check('payment reminders disabled', store().settings?.showPaymentReminders===false);
 check('flow ends cleanly', /יום נקי/.test(txt()));
 await click(findAll('button',/חזרה למסך הבית/)[0],'close');
 
